@@ -1,0 +1,3 @@
+SELECT * FROM tasks ORDER BY id;
+SELECT * FROM tasks WHERE done = 1 ORDER BY id;
+SELECT COUNT(*) FROM tasks;
