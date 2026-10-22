@@ -285,6 +285,33 @@ def test_reinitializing_database_does_not_duplicate_seed_tasks(tmp_path) -> None
         assert connection.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 3
 
 
+def test_database_initialization_does_not_seed_nonempty_table(tmp_path) -> None:
+    database_path = tmp_path / "tasks.db"
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                done INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+        connection.execute(
+            "INSERT INTO tasks (title, done) VALUES (?, ?)",
+            ("Existing task", 1),
+        )
+
+    initialize_database(database_path)
+
+    with sqlite3.connect(database_path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 1
+        assert connection.execute("SELECT title, done FROM tasks").fetchone() == (
+            "Existing task",
+            1,
+        )
+
+
 def test_default_database_path_is_next_to_application() -> None:
     assert DEFAULT_DATABASE_PATH.name == "tasks.db"
     assert DEFAULT_DATABASE_PATH.is_absolute()
