@@ -1,4 +1,5 @@
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from fastapi.testclient import TestClient
@@ -310,6 +311,16 @@ def test_database_initialization_does_not_seed_nonempty_table(tmp_path) -> None:
             "Existing task",
             1,
         )
+
+
+def test_concurrent_initialization_seeds_only_once(tmp_path) -> None:
+    database_path = tmp_path / "tasks.db"
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        list(executor.map(initialize_database, [database_path] * 4))
+
+    with sqlite3.connect(database_path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 3
 
 
 def test_default_database_path_is_next_to_application() -> None:

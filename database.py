@@ -28,6 +28,7 @@ def initialize_database(database_path: Path = DEFAULT_DATABASE_PATH) -> None:
     database_path.parent.mkdir(parents=True, exist_ok=True)
 
     with database_connection(database_path) as connection:
+        connection.execute("BEGIN IMMEDIATE")
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS tasks (
