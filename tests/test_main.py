@@ -275,6 +275,24 @@ def test_database_initialization_creates_three_seed_tasks(tmp_path) -> None:
         assert connection.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 3
 
 
+def test_database_schema_has_required_columns(tmp_path) -> None:
+    database_path = tmp_path / "tasks.db"
+
+    initialize_database(database_path)
+
+    with sqlite3.connect(database_path) as connection:
+        columns = {
+            row[1]: {"type": row[2], "primary_key": bool(row[5])}
+            for row in connection.execute("PRAGMA table_info(tasks)")
+        }
+
+    assert columns == {
+        "id": {"type": "INTEGER", "primary_key": True},
+        "title": {"type": "TEXT", "primary_key": False},
+        "done": {"type": "INTEGER", "primary_key": False},
+    }
+
+
 def test_reinitializing_database_does_not_duplicate_seed_tasks(tmp_path) -> None:
     database_path = tmp_path / "tasks.db"
 
