@@ -98,6 +98,24 @@ def test_created_task_persists_after_app_restart(tmp_path) -> None:
     assert created.status_code == 201
 
 
+def test_update_and_delete_persist_across_app_restarts(tmp_path) -> None:
+    database_path = tmp_path / "tasks.db"
+    first_client = TestClient(create_app(database_path))
+
+    updated = first_client.put("/tasks/1", json={"done": True})
+    created = first_client.post("/tasks", json={"title": "Delete after restart"})
+    restarted_client = TestClient(create_app(database_path))
+
+    assert updated.status_code == 200
+    assert restarted_client.get("/tasks/1").json()["done"] is True
+    assert restarted_client.get("/tasks/4").json()["title"] == "Delete after restart"
+    assert restarted_client.delete("/tasks/4").status_code == 204
+
+    final_client = TestClient(create_app(database_path))
+    assert final_client.get("/tasks/4").status_code == 404
+    assert created.status_code == 201
+
+
 @pytest.mark.parametrize(
     "body",
     [
@@ -190,7 +208,7 @@ def test_update_unknown_task_returns_404(client: TestClient) -> None:
     response = client.put("/tasks/999", json={"done": True})
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "Task not found"}
+    assert response.json() == {"error": "Task not found"}
 
 
 def test_delete_existing_task_returns_empty_204(client: TestClient) -> None:
@@ -198,13 +216,14 @@ def test_delete_existing_task_returns_empty_204(client: TestClient) -> None:
 
     assert response.status_code == 204
     assert response.content == b""
+    assert client.get("/tasks/1").status_code == 404
 
 
 def test_delete_unknown_task_returns_404(client: TestClient) -> None:
     response = client.delete("/tasks/999")
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "Task not found"}
+    assert response.json() == {"error": "Task not found"}
 
 
 def test_next_task_id_increments_after_deletion(client: TestClient) -> None:

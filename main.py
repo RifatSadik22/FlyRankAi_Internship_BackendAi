@@ -57,12 +57,6 @@ def create_app(database_path: Path = DEFAULT_DATABASE_PATH) -> FastAPI:
     app = FastAPI(title="Task API", version="1.0")
     app.state.database_path = database_path
     initialize_database(database_path)
-    app.state.tasks = {
-        1: Task(id=1, title="Buy groceries", done=False),
-        2: Task(id=2, title="Walk the dog", done=True),
-        3: Task(id=3, title="Read a book", done=False),
-    }
-    app.state.next_task_id = 4
 
     @app.exception_handler(RequestValidationError)
     async def validation_error_handler(
@@ -140,9 +134,6 @@ def create_app(database_path: Path = DEFAULT_DATABASE_PATH) -> FastAPI:
         },
     )
     async def update_task(task_id: int, updates: TaskUpdate) -> Task:
-        task = app.state.tasks.get(task_id)
-        if task is None:
-            raise HTTPException(status_code=404, detail="Task not found")
         if not updates.model_fields_set:
             raise HTTPException(
                 status_code=400,
@@ -153,10 +144,31 @@ def create_app(database_path: Path = DEFAULT_DATABASE_PATH) -> FastAPI:
         if "done" in updates.model_fields_set and updates.done is None:
             raise HTTPException(status_code=400, detail="done must not be null")
 
-        changes = updates.model_dump(exclude_unset=True)
-        updated_task = task.model_copy(update=changes)
-        app.state.tasks[task_id] = updated_task
-        return updated_task
+        with database_connection(app.state.database_path) as connection:
+            existing_row = connection.execute(
+                "SELECT * FROM tasks WHERE id = ?", (task_id,)
+            ).fetchone()
+            if existing_row is None:
+                raise TaskNotFoundError
+
+            title = (
+                updates.title
+                if "title" in updates.model_fields_set
+                else existing_row["title"]
+            )
+            done = (
+                updates.done
+                if "done" in updates.model_fields_set
+                else bool(existing_row["done"])
+            )
+            connection.execute(
+                "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
+                (title, int(done), task_id),
+            )
+            row = connection.execute(
+                "SELECT * FROM tasks WHERE id = ?", (task_id,)
+            ).fetchone()
+        return task_from_row(row)
 
     @app.delete(
         "/tasks/{task_id}",
@@ -167,9 +179,12 @@ def create_app(database_path: Path = DEFAULT_DATABASE_PATH) -> FastAPI:
         },
     )
     async def delete_task(task_id: int) -> Response:
-        if task_id not in app.state.tasks:
-            raise HTTPException(status_code=404, detail="Task not found")
-        del app.state.tasks[task_id]
+        with database_connection(app.state.database_path) as connection:
+            cursor = connection.execute(
+                "DELETE FROM tasks WHERE id = ?", (task_id,)
+            )
+            if cursor.rowcount == 0:
+                raise TaskNotFoundError
         return Response(status_code=204)
 
     return app
