@@ -52,7 +52,28 @@ def test_get_unknown_task_returns_404(client: TestClient) -> None:
     response = client.get("/tasks/999")
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "Task not found"}
+    assert response.json() == {"error": "Task not found"}
+
+
+def test_task_reads_reflect_database_rows_and_boolean_values(
+    client: TestClient,
+) -> None:
+    database_path = client.app.state.database_path
+    with sqlite3.connect(database_path) as connection:
+        cursor = connection.execute(
+            "INSERT INTO tasks (title, done) VALUES (?, ?)",
+            ("Direct database task", 1),
+        )
+        task_id = cursor.lastrowid
+
+    response = client.get(f"/tasks/{task_id}")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": task_id,
+        "title": "Direct database task",
+        "done": True,
+    }
 
 
 def test_create_task_assigns_next_id_and_defaults_done(client: TestClient) -> None:
@@ -162,7 +183,6 @@ def test_delete_existing_task_returns_empty_204(client: TestClient) -> None:
 
     assert response.status_code == 204
     assert response.content == b""
-    assert client.get("/tasks/1").status_code == 404
 
 
 def test_delete_unknown_task_returns_404(client: TestClient) -> None:

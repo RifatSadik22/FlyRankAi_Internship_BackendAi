@@ -1,4 +1,5 @@
 from pathlib import Path
+import sqlite3
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
@@ -6,13 +7,25 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, StrictBool, StrictStr, field_validator
 
-from database import DEFAULT_DATABASE_PATH, initialize_database
+from database import (
+    DEFAULT_DATABASE_PATH,
+    database_connection,
+    initialize_database,
+)
 
 
 class Task(BaseModel):
     id: int
     title: str
     done: bool
+
+
+class TaskNotFoundError(Exception):
+    pass
+
+
+def task_from_row(row: sqlite3.Row) -> Task:
+    return Task(id=row["id"], title=row["title"], done=bool(row["done"]))
 
 
 class TaskCreate(BaseModel):
@@ -60,6 +73,12 @@ def create_app(database_path: Path = DEFAULT_DATABASE_PATH) -> FastAPI:
             content={"detail": jsonable_encoder(exc.errors())},
         )
 
+    @app.exception_handler(TaskNotFoundError)
+    async def task_not_found_handler(
+        _request: Request, _exc: TaskNotFoundError
+    ) -> JSONResponse:
+        return JSONResponse(status_code=404, content={"error": "Task not found"})
+
     @app.get("/")
     async def root() -> dict[str, object]:
         return {
@@ -74,7 +93,9 @@ def create_app(database_path: Path = DEFAULT_DATABASE_PATH) -> FastAPI:
 
     @app.get("/tasks", response_model=list[Task])
     async def list_tasks() -> list[Task]:
-        return list(app.state.tasks.values())
+        with database_connection(app.state.database_path) as connection:
+            rows = connection.execute("SELECT * FROM tasks ORDER BY id").fetchall()
+        return [task_from_row(row) for row in rows]
 
     @app.get(
         "/tasks/{task_id}",
@@ -85,10 +106,13 @@ def create_app(database_path: Path = DEFAULT_DATABASE_PATH) -> FastAPI:
         },
     )
     async def get_task(task_id: int) -> Task:
-        task = app.state.tasks.get(task_id)
-        if task is None:
-            raise HTTPException(status_code=404, detail="Task not found")
-        return task
+        with database_connection(app.state.database_path) as connection:
+            row = connection.execute(
+                "SELECT * FROM tasks WHERE id = ?", (task_id,)
+            ).fetchone()
+        if row is None:
+            raise TaskNotFoundError
+        return task_from_row(row)
 
     @app.post(
         "/tasks",
