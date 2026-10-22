@@ -1,12 +1,15 @@
+import sqlite3
+
 import pytest
 from fastapi.testclient import TestClient
 
+from database import DEFAULT_DATABASE_PATH, initialize_database
 from main import create_app
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(create_app())
+def client(tmp_path) -> TestClient:
+    return TestClient(create_app(tmp_path / "tasks.db"))
 
 
 def test_root_returns_exact_service_information(client: TestClient) -> None:
@@ -200,9 +203,34 @@ def test_swagger_docs_are_available(client: TestClient) -> None:
     assert "swagger-ui" in response.text.lower()
 
 
-def test_each_app_starts_with_isolated_sample_data() -> None:
-    client = TestClient(create_app())
+def test_each_app_starts_with_isolated_sample_data(tmp_path) -> None:
+    client = TestClient(create_app(tmp_path / "first.db"))
     client.delete("/tasks/1")
 
-    fresh_client = TestClient(create_app())
+    fresh_client = TestClient(create_app(tmp_path / "second.db"))
     assert fresh_client.get("/tasks/1").status_code == 200
+
+
+def test_database_initialization_creates_three_seed_tasks(tmp_path) -> None:
+    database_path = tmp_path / "nested" / "tasks.db"
+
+    initialize_database(database_path)
+
+    with sqlite3.connect(database_path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 3
+
+
+def test_reinitializing_database_does_not_duplicate_seed_tasks(tmp_path) -> None:
+    database_path = tmp_path / "tasks.db"
+
+    initialize_database(database_path)
+    initialize_database(database_path)
+    initialize_database(database_path)
+
+    with sqlite3.connect(database_path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 3
+
+
+def test_default_database_path_is_next_to_application() -> None:
+    assert DEFAULT_DATABASE_PATH.name == "tasks.db"
+    assert DEFAULT_DATABASE_PATH.is_absolute()

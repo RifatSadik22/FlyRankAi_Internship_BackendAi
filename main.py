@@ -1,8 +1,12 @@
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, StrictBool, StrictStr, field_validator
+
+from database import DEFAULT_DATABASE_PATH, initialize_database
 
 
 class Task(BaseModel):
@@ -36,8 +40,10 @@ class TaskUpdate(BaseModel):
         return value
 
 
-def create_app() -> FastAPI:
+def create_app(database_path: Path = DEFAULT_DATABASE_PATH) -> FastAPI:
     app = FastAPI(title="Task API", version="1.0")
+    app.state.database_path = database_path
+    initialize_database(database_path)
     app.state.tasks = {
         1: Task(id=1, title="Buy groceries", done=False),
         2: Task(id=2, title="Walk the dog", done=True),

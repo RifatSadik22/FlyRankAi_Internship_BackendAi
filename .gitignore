@@ -8,3 +8,5 @@ htmlcov/
 .env.*
 !.env.example
 .vscode/
+tasks.db
+tasks.db-*
