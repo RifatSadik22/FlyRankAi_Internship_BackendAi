@@ -113,8 +113,9 @@ GET /docs              HTTP 200; content-type text/html; charset=utf-8
 GET /openapi.json      HTTP 200; content-type application/json
 ```
 
-Interactive Swagger documentation: `http://127.0.0.1:8000/docs`  
-OpenAPI JSON: `http://127.0.0.1:8000/openapi.json`
+Interactive Swagger documentation: <http://127.0.0.1:8000/docs>
+
+OpenAPI JSON: <http://127.0.0.1:8000/openapi.json>
 
 ## Deployment
 
