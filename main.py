@@ -54,6 +54,7 @@ class TaskUpdate(BaseModel):
 
 
 def create_app(database_path: Path = DEFAULT_DATABASE_PATH) -> FastAPI:
+    database_path = database_path.resolve()
     app = FastAPI(title="Task API", version="1.0")
     app.state.database_path = database_path
     initialize_database(database_path)

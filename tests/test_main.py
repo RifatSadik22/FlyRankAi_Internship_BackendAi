@@ -1,5 +1,6 @@
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -344,3 +345,14 @@ def test_concurrent_initialization_seeds_only_once(tmp_path) -> None:
 def test_default_database_path_is_next_to_application() -> None:
     assert DEFAULT_DATABASE_PATH.name == "tasks.db"
     assert DEFAULT_DATABASE_PATH.is_absolute()
+
+
+def test_custom_relative_database_path_is_resolved_at_app_creation(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    client = TestClient(create_app(Path("data") / "tasks.db"))
+
+    assert client.app.state.database_path == tmp_path / "data" / "tasks.db"
+    assert client.get("/tasks").status_code == 200
