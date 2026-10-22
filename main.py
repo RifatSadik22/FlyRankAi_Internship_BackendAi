@@ -121,11 +121,15 @@ def create_app(database_path: Path = DEFAULT_DATABASE_PATH) -> FastAPI:
         responses={400: {"description": "Invalid request"}},
     )
     async def create_task(task_data: TaskCreate) -> Task:
-        task_id = app.state.next_task_id
-        task = Task(id=task_id, title=task_data.title, done=False)
-        app.state.tasks[task_id] = task
-        app.state.next_task_id += 1
-        return task
+        with database_connection(app.state.database_path) as connection:
+            cursor = connection.execute(
+                "INSERT INTO tasks (title, done) VALUES (?, ?)",
+                (task_data.title, 0),
+            )
+            row = connection.execute(
+                "SELECT * FROM tasks WHERE id = ?", (cursor.lastrowid,)
+            ).fetchone()
+        return task_from_row(row)
 
     @app.put(
         "/tasks/{task_id}",

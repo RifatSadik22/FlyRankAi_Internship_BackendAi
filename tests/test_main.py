@@ -83,6 +83,21 @@ def test_create_task_assigns_next_id_and_defaults_done(client: TestClient) -> No
     assert response.json() == {"id": 4, "title": "Write tests", "done": False}
 
 
+def test_created_task_persists_after_app_restart(tmp_path) -> None:
+    database_path = tmp_path / "tasks.db"
+    first_client = TestClient(create_app(database_path))
+
+    created = first_client.post("/tasks", json={"title": "Persistent task"})
+
+    restarted_client = TestClient(create_app(database_path))
+    assert restarted_client.get("/tasks/4").json() == {
+        "id": 4,
+        "title": "Persistent task",
+        "done": False,
+    }
+    assert created.status_code == 201
+
+
 @pytest.mark.parametrize(
     "body",
     [
