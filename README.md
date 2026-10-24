@@ -1,5 +1,4 @@
-# FlyRank Task API — Week 3 Assignment A2
-
+# FlyRank Task API 
 This FastAPI Task API keeps the same routes and task response format as the previous assignment, but stores tasks in SQLite so changes survive an application restart.
 
 ## Features and technology
