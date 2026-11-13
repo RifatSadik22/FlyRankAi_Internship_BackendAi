@@ -1,0 +1,1 @@
+"""Scraper assignment package."""

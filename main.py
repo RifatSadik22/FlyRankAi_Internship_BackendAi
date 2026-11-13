@@ -12,6 +12,8 @@ from database import (
     database_connection,
     initialize_database,
 )
+from src.llm.schemas import BookEnrichmentInput, EnrichmentResult
+from src.llm.service import enrich_book_payload
 
 
 class Task(BaseModel):
@@ -87,6 +89,19 @@ def create_app(database_path: Path = DEFAULT_DATABASE_PATH) -> FastAPI:
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.post(
+        "/enrich",
+        response_model=EnrichmentResult,
+        responses={400: {"description": "Invalid enrichment request"}, 503: {"description": "LLM disabled or unavailable"}},
+    )
+    async def enrich_book(record: BookEnrichmentInput) -> EnrichmentResult:
+        try:
+            return enrich_book_payload(record.model_dump(exclude_none=True))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     @app.get("/tasks", response_model=list[Task])
     async def list_tasks() -> list[Task]:

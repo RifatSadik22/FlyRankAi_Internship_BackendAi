@@ -59,11 +59,47 @@ Tests use temporary databases and do not change the development `tasks.db`.
 | --- | --- | --- | --- |
 | GET | `/` | API name, version, and endpoint list | 200 |
 | GET | `/health` | Health check | 200 |
+| POST | `/enrich` | Validate a book record and enrich it with a strict LLM response | 200 |
 | GET | `/tasks` | List tasks from SQLite | 200 |
 | GET | `/tasks/{task_id}` | Retrieve a task from SQLite | 200 |
 | POST | `/tasks` | Create a task | 201 |
 | PUT | `/tasks/{task_id}` | Update title, done, or both | 200 |
 | DELETE | `/tasks/{task_id}` | Delete a task | 204, empty body |
+
+### LLM enrichment endpoint
+
+The API includes a strict `/enrich` route for book metadata enrichment. The request body accepts a record such as:
+
+```json
+{
+  "title": "The Pragmatic Programmer",
+  "author": "Andrew Hunt",
+  "description": "A practical guide to software craftsmanship.",
+  "genre": "software engineering"
+}
+```
+
+The response is validated with Pydantic and returns a schema with `category`, `summary`, `quality_flags`, `confidence`, and `needs_review`.
+
+Set environment variables before using a real provider:
+
+```powershell
+$env:LLM_BASE_URL = "https://example-provider/v1"
+$env:LLM_API_KEY = "your-key"
+$env:LLM_MODEL = "gpt-4o-mini"
+```
+
+To force deterministic local behavior without a provider, set:
+
+```powershell
+$env:LLM_STUB = "1"
+```
+
+To disable model calls entirely, set:
+
+```powershell
+$env:LLM_ENABLED = "false"
+```
 
 Task objects have the form `{"id": 1, "title": "Buy groceries", "done": false}`. Creation requires a non-blank string title:
 

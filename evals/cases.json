@@ -1,0 +1,20 @@
+[
+  {
+    "name": "good_record",
+    "input": {
+      "title": "The Pragmatic Programmer",
+      "author": "Andrew Hunt",
+      "description": "A practical guide to software craftsmanship and team productivity.",
+      "genre": "software engineering"
+    },
+    "expected_category": "software engineering"
+  },
+  {
+    "name": "incomplete_record",
+    "input": {
+      "title": "Moby-Dick",
+      "author": "Herman Melville"
+    },
+    "expected_needs_review": true
+  }
+]
