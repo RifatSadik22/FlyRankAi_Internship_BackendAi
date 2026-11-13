@@ -1,0 +1,9 @@
+cache/*
+!cache/.gitkeep
+output/*.json
+!output/books.json
+!output/errors.json
+!output/run-report.json
+__pycache__/
+.pytest_cache/
+*.pyc
