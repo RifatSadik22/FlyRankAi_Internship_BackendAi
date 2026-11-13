@@ -29,6 +29,8 @@ def task_from_row(row: sqlite3.Row) -> Task:
 
 
 class TaskCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     title: StrictStr
 
     @field_validator("title")

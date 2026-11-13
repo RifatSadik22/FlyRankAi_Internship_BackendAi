@@ -137,6 +137,13 @@ def test_create_task_rejects_missing_blank_or_invalid_title(
     assert "detail" in response.json()
 
 
+def test_create_task_rejects_extra_fields(client: TestClient) -> None:
+    response = client.post("/tasks", json={"title": "Write tests", "done": True})
+
+    assert response.status_code == 400
+    assert "detail" in response.json()
+
+
 def test_create_task_rejects_missing_body(client: TestClient) -> None:
     response = client.post("/tasks")
 
